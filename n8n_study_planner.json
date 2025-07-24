@@ -1,0 +1,401 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Academic Career Planner",
+        "formDescription": "Build a semester-specific roadmap for your chosen tech stack",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Enter is your name?",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Enter is your discipline of study?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "B.Tech / B.S"
+                  },
+                  {
+                    "option": "BCA"
+                  }
+                ]
+              },
+              "multiselect": true
+            },
+            {
+              "fieldLabel": "Enter year are you in?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "1"
+                  },
+                  {
+                    "option": "2"
+                  },
+                  {
+                    "option": "3"
+                  },
+                  {
+                    "option": "4 (Not applicable for BCA students)"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Which stack would you like the roadmap to be on?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "AI/ML"
+                  },
+                  {
+                    "option": "Full Stack Development"
+                  },
+                  {
+                    "option": "Cybersecurity"
+                  },
+                  {
+                    "option": "Data Science"
+                  },
+                  {
+                    "option": "UI/UX"
+                  },
+                  {
+                    "option": "DevOps"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Enter is your current level of understanding?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Beginner"
+                  },
+                  {
+                    "option": "Intermediate"
+                  },
+                  {
+                    "option": "Advanced"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Briefly describe your current skills (only keywords) , if any prior exxperience?"
+            },
+            {
+              "fieldLabel": "Enter is your email id?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -368,
+        304
+      ],
+      "id": "50facb8f-b823-4ee1-aafc-7e44b6d7b41c",
+      "name": "On form submission",
+      "webhookId": "7bafffe2-e109-4213-8b78-076f83301fb5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an AI assistant expert in creating academic and career roadmaps. Based on the user's input about their current year in B.Tech (1 to 4), generate a detailed roadmap covering relevant semester (Just that semester meaning roadmap of 6 months), skills, projects, and internship prep and give proper breakdown of each month for the whole semester.\n\nOutput the entire roadmap as clean, semantic HTML with headings, lists, and sections and also mention the mail in the output.\n\nDo NOT include any explanations or extra text—ONLY return the complete HTML snippet.\n\nMake sure the HTML uses proper tags like <h2>, <ul>, <li>, <p> for readability and formatting.\n\nThe HTML should be self-contained and suitable to embed in emails or webpages.\n\n\n⚠️ Do not use Markdown formatting like *, **, or #.\nJust use plain section headers (e.g., “Semester 5”) and dash - bullet points.\nAvoid using any formatting characters.\nThe roadmap should be limited to that very semester only, don't generate any other information.",
+        "options": {
+          "systemMessage": "=You are an academic roadmap planner.  \nStudent's name: {{ $json['What is your name?'] }}\nDiscipline:{{ $json['What is your discipline of study?'] }}\nYear: {{ $json['What year are you in?'] }}\nUnderstanding: {{ $json['What is your current level of understanding?'] }}\nEmail:{{ $json['What is your email id?'] }}\nBased on this info, create a personalized study plan.\n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        304
+      ],
+      "id": "4a79057a-8209-4acb-975b-40a0c4c31206",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        528
+      ],
+      "id": "585f3710-be74-4ba6-be2a-8dd5e542548f",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lGP22fEr7OyMSSs2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.output; // Replace if needed\n\nconst plain = html\n  .replace(/<[^>]+>/g, '')  \n  .replace(/•/g, '-')        \n  .replace(/\\n\\s*\\n/g, '\\n');\n\nconst lines = plain\n  .split('\\n')\n  .map(line => line.trim())\n  .filter(line => line.startsWith('-') && line.length > 5);\n\nconst now = new Date();\n\nconst semesterStart = new Date(now.getFullYear(), 6, 15); \nconst semesterEnd = new Date(now.getFullYear(), 10, 15);  \n\nconst totalSemesterDays = (semesterEnd - semesterStart) / (1000 * 60 * 60 * 24);\nconst taskCount = lines.length;\nconst intervalDays = totalSemesterDays / taskCount;\n\nconst output = [];\n\nfor (let i = 0; i < taskCount; i++) {\n  const task = lines[i].replace(/^- /, '');\n\n  const start = new Date(semesterStart);\n  start.setDate(start.getDate() + Math.floor(i * intervalDays));\n  start.setHours(0, 0, 0, 0);  \n  let end;\n  if (i < taskCount - 1) {\n    end = new Date(semesterStart);\n    end.setDate(end.getDate() + Math.floor((i + 1) * intervalDays) - 1);\n    end.setHours(23, 59, 59, 999);\n  } else {\n    end = new Date(semesterEnd);\n    end.setHours(23, 59, 59, 999);\n  }\n\n  output.push({\n    json: {\n      summary: task,\n      description: 'Task spanning multiple days',\n      start: start.toISOString(),\n      end: end.toISOString()\n    }\n  });\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        512
+      ],
+      "id": "da9f5dd7-8f9f-4daa-af99-6a306991a10d",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output; // Gemini's HTML output\n\nconst emailMatch = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-z]{2,}/);\nconst extractedEmail = emailMatch ? emailMatch[0] : \"snehaalmukherjee@gmail.com\"; \nconst htmlFormatted = `<div style=\"font-family:Arial,sans-serif;line-height:1.6;font-size:14px\">${raw}</div>`;\nreturn {\n  json: {\n    email: extractedEmail,\n    html: htmlFormatted,\n    subject: \"Your Personalized B.Tech Roadmap\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        288
+      ],
+      "id": "0c5acf66-58f1-44d9-b95d-200d9d311e44",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "content": "The Task Breakdown node deals with segmenting the output provided by Gemini API into specified fields such as start date, end date etc. for smooth creation of Google Calendar Events. ",
+        "height": 120,
+        "width": 280,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        672
+      ],
+      "id": "4cd5fdff-da94-4c80-9737-6acedcfc66dd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "The Code function node extracts the email ID from the Gemini API output while also forwarding the remaining content for use in the email body. You can bypass this node by simply providing an email to send the contents to in the gmail node.",
+        "width": 260,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        64
+      ],
+      "id": "5c30c9e9-55c4-49fd-9931-a1d1a533abe3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 440,
+        "width": 540,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        224
+      ],
+      "id": "1ccfb788-c6df-4cc5-ae47-d61bb93762de",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 180,
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "3dacf932-8dba-4937-9585-4856f3d38773",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        496
+      ],
+      "typeVersion": 1,
+      "id": "092c1238-12e8-4ec8-8a03-8801b5fea914",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Student Roadmap Planner",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        464,
+        288
+      ],
+      "id": "74ebd1c5-0442-4c09-b978-bf44c0b0dd80",
+      "name": "Send a message",
+      "webhookId": "7943635a-37f1-4103-b47e-41bd8fe84037",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6k0Zj2nY2CKzKzAz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "snehaalmukherjee@gmail.com",
+          "mode": "list",
+          "cachedResultName": "snehaalmukherjee@gmail.com"
+        },
+        "start": "={{ $json.start }}",
+        "end": "={{ $json.end }}",
+        "additionalFields": {
+          "description": "={{ $json[\"description\"] }}",
+          "summary": "={{ $json[\"summary\"] }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        512
+      ],
+      "id": "34e21810-fa7c-439f-8eb1-3b44f5999ced",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "frXXxi6ttWSZN403",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Code": [
+      {
+        "json": {
+          "email": "snehaalmukherjee@gmail.com",
+          "html": "<div style=\"font-family:Arial,sans-serif;line-height:1.6;font-size:14px\">```html\n<!DOCTYPE html>\n<html>\n<head>\n<title>Personalized Academic Roadmap</title>\n</head>\n<body>\n    <h2>Academic & Career Roadmap for Priya Sharma</h2>\n    <p><strong>Discipline:</strong> Computer Science</p>\n    <p><strong>Year:</strong> 3</p>\n    <p><strong>Understanding:</strong> I know basic C++ and Python, and I have a decent grasp of Data Structures and Algorithms. I've done a small personal project but nothing major. I want to prepare for internships.</p>\n    <p><strong>Email:</strong> snehaalmukherjee@gmail.com</p>\n\n    <h3>Semester 5 Roadmap: The Internship Push</h3>\n    <p>This semester is critical for securing a summer internship. The focus will be on advanced topics, building a significant project, and intensive interview preparation.</p>\n\n    <h4>Month 1 - Foundation and Planning</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Master core subjects: Operating Systems (OS) and Database Management Systems (DBMS).</li>\n                <li>- Learn advanced Data Structures: Trees, Graphs, and Tries.</li>\n                <li>- Solve 20-25 medium-level DSA problems on LeetCode/HackerRank.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Brainstorm and finalize a major project idea (e.g., Full-Stack Web App, Mobile App).</li>\n                <li>- Select a technology stack (e.g., MERN, Django, Flutter).</li>\n                <li>- Set up the project repository on GitHub with a clear README structure.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Create a master resume and get it reviewed by seniors or career services.</li>\n                <li>- Optimize your LinkedIn profile; start connecting with recruiters and alumni.</li>\n                <li>- Make a target list of 30-40 companies for internships.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 2 - Deep Dive and Building</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Study advanced concepts in OS (Concurrency, Memory Management) and DBMS (Normalization, SQL vs NoSQL).</li>\n                <li>- Focus on Dynamic Programming (DP) and standard graph algorithms (Dijkstra's, BFS, DFS).</li>\n                <li>- Participate in at least two weekly coding contests to improve speed.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Develop the core features and backend logic of your project.</li>\n                <li>- Implement the database schema and ensure data integrity.</li>\n                <li>- Make regular, meaningful commits to GitHub.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Start practicing with a mock interview partner. Focus on articulating your thought process.</li>\n                <li>- Begin applying for internships that have early deadlines.</li>\n                <li>- Customize your resume for each specific job description.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 3 - System Concepts and Project Frontend</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Cover fundamentals of Computer Networks (OSI Model, TCP/IP protocol suite).</li>\n                <li>- Revise all previously learned DSA topics thoroughly.</li>\n                <li>- Practice aptitude questions (quantitative, logical reasoning, verbal) for online assessments.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Develop the frontend/UI of your project.</li>\n                <li>- Integrate the frontend with the backend APIs.</li>\n                <li>- Write a detailed README for your project, including setup instructions and features.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Intensify the application process. Use a spreadsheet to track applications.</li>\n                <li>- Prepare answers for common behavioral and HR questions.</li>\n                <li>- Actively seek referrals through your network.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 4 - Application Blitz and Interview Prep</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Revise all core CS subjects (OS, DBMS, CN, OOPS) from an interview perspective.</li>\n                <li>- Solve company-specific tagged questions on LeetCode.</li>\n                <li>- Read about System Design fundamentals (Load Balancing, Caching, Sharding).</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Finalize and debug your project. Add at least one unique feature.</li>\n                <li>- Deploy your application using a service like Vercel, Heroku, or AWS Amplify.</li>\n                <li>- Prepare a 2-minute elevator pitch to explain your project in an interview.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Take every online assessment seriously; they are the primary screening step.</li>\n                <li>- Schedule and conduct mock interviews focusing on technical and system design rounds.</li>\n                <li>- Follow up professionally on applications where appropriate.</li>\n            </ul>\n        </li>\n    </ul>\n    \n    <h4>Month 5 - Interview Season and Specialization</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Continue daily problem-solving to stay sharp. Focus on topics you find difficult.</li>\n                <li>- Go deeper into System Design concepts. Watch mock interview videos online.</li>\n                <li>- Begin exploring a niche field of interest like Cloud Computing, AI/ML, or Cybersecurity.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Maintain your deployed project and fix any bugs.</li>\n                <li>- Start a small, new project or contribute to an open-source project in your niche area of interest.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- You should be actively attending interviews. Analyze your performance after each one.</li>\n                <li>- Prepare questions to ask the interviewer about the company, role, and culture.</li>\n                <li>- Stay resilient and keep applying even if you face rejections.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 6 - Securing Offers and Semester Finals</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Shift primary focus to preparing for and acing your semester-end examinations.</li>\n                <li>- Continue light DSA practice to keep concepts fresh.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Document all your projects properly on your resume and portfolio.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Aim to secure an internship offer. Evaluate offers based on learning opportunities and career goals.</li>\n                <li>- If you have an offer, learn about the company's tech stack.</li>\n                <li>- If still searching, focus on off-campus drives and startups.</li>\n                <li>- Send thank-you notes to recruiters and interviewers.</li>\n            </ul>\n        </li>\n    </ul>\n</body>\n</html>\n```</div>",
+          "subject": "Your Personalized B.Tech Roadmap"
+        }
+      }
+    ],
+    "AI Agent": [
+      {
+        "json": {
+          "output": "```html\n<!DOCTYPE html>\n<html>\n<head>\n<title>Personalized Academic Roadmap</title>\n</head>\n<body>\n    <h2>Academic & Career Roadmap for Snehaal Mukherjee</h2>\n    <p><strong>Discipline:</strong> Computer Science</p>\n    <p><strong>Year:</strong> 3</p>\n    <p><strong>Understanding:</strong> I know basic C++ and Python, and I have a decent grasp of Data Structures and Algorithms. I've done a small personal project but nothing major. I want to prepare for internships.</p>\n    <p><strong>Email:</strong> snehaalmukherjee@gmail.com</p>\n\n    <h3>Semester 5 Roadmap: The Internship Push</h3>\n    <p>This semester is critical for securing a summer internship. The focus will be on advanced topics, building a significant project, and intensive interview preparation.</p>\n\n    <h4>Month 1 - Foundation and Planning</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Master core subjects: Operating Systems (OS) and Database Management Systems (DBMS).</li>\n                <li>- Learn advanced Data Structures: Trees, Graphs, and Tries.</li>\n                <li>- Solve 20-25 medium-level DSA problems on LeetCode/HackerRank.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Brainstorm and finalize a major project idea (e.g., Full-Stack Web App, Mobile App).</li>\n                <li>- Select a technology stack (e.g., MERN, Django, Flutter).</li>\n                <li>- Set up the project repository on GitHub with a clear README structure.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Create a master resume and get it reviewed by seniors or career services.</li>\n                <li>- Optimize your LinkedIn profile; start connecting with recruiters and alumni.</li>\n                <li>- Make a target list of 30-40 companies for internships.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 2 - Deep Dive and Building</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Study advanced concepts in OS (Concurrency, Memory Management) and DBMS (Normalization, SQL vs NoSQL).</li>\n                <li>- Focus on Dynamic Programming (DP) and standard graph algorithms (Dijkstra's, BFS, DFS).</li>\n                <li>- Participate in at least two weekly coding contests to improve speed.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Develop the core features and backend logic of your project.</li>\n                <li>- Implement the database schema and ensure data integrity.</li>\n                <li>- Make regular, meaningful commits to GitHub.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Start practicing with a mock interview partner. Focus on articulating your thought process.</li>\n                <li>- Begin applying for internships that have early deadlines.</li>\n                <li>- Customize your resume for each specific job description.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 3 - System Concepts and Project Frontend</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Cover fundamentals of Computer Networks (OSI Model, TCP/IP protocol suite).</li>\n                <li>- Revise all previously learned DSA topics thoroughly.</li>\n                <li>- Practice aptitude questions (quantitative, logical reasoning, verbal) for online assessments.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Develop the frontend/UI of your project.</li>\n                <li>- Integrate the frontend with the backend APIs.</li>\n                <li>- Write a detailed README for your project, including setup instructions and features.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Intensify the application process. Use a spreadsheet to track applications.</li>\n                <li>- Prepare answers for common behavioral and HR questions.</li>\n                <li>- Actively seek referrals through your network.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 4 - Application Blitz and Interview Prep</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Revise all core CS subjects (OS, DBMS, CN, OOPS) from an interview perspective.</li>\n                <li>- Solve company-specific tagged questions on LeetCode.</li>\n                <li>- Read about System Design fundamentals (Load Balancing, Caching, Sharding).</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Finalize and debug your project. Add at least one unique feature.</li>\n                <li>- Deploy your application using a service like Vercel, Heroku, or AWS Amplify.</li>\n                <li>- Prepare a 2-minute elevator pitch to explain your project in an interview.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Take every online assessment seriously; they are the primary screening step.</li>\n                <li>- Schedule and conduct mock interviews focusing on technical and system design rounds.</li>\n                <li>- Follow up professionally on applications where appropriate.</li>\n            </ul>\n        </li>\n    </ul>\n    \n    <h4>Month 5 - Interview Season and Specialization</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Continue daily problem-solving to stay sharp. Focus on topics you find difficult.</li>\n                <li>- Go deeper into System Design concepts. Watch mock interview videos online.</li>\n                <li>- Begin exploring a niche field of interest like Cloud Computing, AI/ML, or Cybersecurity.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Maintain your deployed project and fix any bugs.</li>\n                <li>- Start a small, new project or contribute to an open-source project in your niche area of interest.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- You should be actively attending interviews. Analyze your performance after each one.</li>\n                <li>- Prepare questions to ask the interviewer about the company, role, and culture.</li>\n                <li>- Stay resilient and keep applying even if you face rejections.</li>\n            </ul>\n        </li>\n    </ul>\n\n    <h4>Month 6 - Securing Offers and Semester Finals</h4>\n    <ul>\n        <li><strong>Academics and Core Skills</strong>\n            <ul>\n                <li>- Shift primary focus to preparing for and acing your semester-end examinations.</li>\n                <li>- Continue light DSA practice to keep concepts fresh.</li>\n            </ul>\n        </li>\n        <li><strong>Projects and Practical Application</strong>\n            <ul>\n                <li>- Document all your projects properly on your resume and portfolio.</li>\n            </ul>\n        </li>\n        <li><strong>Career and Internship Prep</strong>\n            <ul>\n                <li>- Aim to secure an internship offer. Evaluate offers based on learning opportunities and career goals.</li>\n                <li>- If you have an offer, learn about the company's tech stack.</li>\n                <li>- If still searching, focus on off-campus drives and startups.</li>\n                <li>- Send thank-you notes to recruiters and interviewers.</li>\n            </ul>\n        </li>\n    </ul>\n</body>\n</html>\n```"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "65cdc99a-088c-4d30-8d28-b18548efb4b1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dad14002b20e0e7b3a8315313ab032582a3f3fa7333d93b760218f80ec72afa3"
+  },
+  "id": "ISm0hG72Mymjcpmy",
+  "tags": []
+}
